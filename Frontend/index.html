@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload CSV to Google Sheet</title>
+  <!-- CSS Link -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="card">
+    <h2>Upload CSV to Google Sheet</h2>
+s
+    <div class="input-group">
+      <label for="csvFile">Select Google Ads CSV File:</label>
+      <input type="file" id="csvFile" accept=".csv">
+    </div>
+
+    <button onclick="uploadCSV()">Sync to Sheet</button>
+
+    <div id="status"></div>
+  </div>
+
+  <!-- JS Link -->
+  <script src="script.js"></script>
+</body>
+</html>
