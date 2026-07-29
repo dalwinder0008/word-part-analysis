@@ -1,0 +1,35 @@
+function doPost(e) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var data = JSON.parse(e.postData.contents);
+    var searchTerms = data.searchTerms;
+
+    // Sheet clear karke new headers set karein
+    sheet.clearContents();
+    sheet.appendRow(["Search term", "One Word"]);
+
+    // Raw terms insert karein
+    var rows = searchTerms.map(function(term) {
+      return [term, ""];
+    });
+
+    sheet.getRange(2, 1, rows.length, 2).setValues(rows);
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      message: "Data successfully synced to Google Sheet!"
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// CORS issues avoid karne ke liye Web App preflight handling
+function doOptions(e) {
+  return ContentService.createTextOutput("")
+    .setMimeType(ContentService.MimeType.TEXT);
+}
