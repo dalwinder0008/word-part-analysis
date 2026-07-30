@@ -1,103 +1,92 @@
-import os
+import re
 import pandas as pd
-import gspread
-from google.oauth2.service_account import Credentials
 
-# --- PATH & GOOGLE SHEETS SETUP ---
-# BASE_DIR dynamic path dynamically file location detect karta hai
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CREDENTIALS_FILE = os.path.join(BASE_DIR, "credentials.json")
 
-# Apne Google Sheet ka exact Title ya Name yahan check karke likhein
-SPREADSHEET_NAME = "bigquery"  
+# ==============================================================================
+input_csv_path = r"D:/dowloads/EDify - kids -- STR -- last 30 days -- Dalwinder  - Search terms report.csv"
 
-def get_sheet_client():
-    """
-    Service AccountCredentials load karta hai aur Google Sheets client return karta hai.
-    """
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scopes)
-    return gspread.authorize(creds)
+stop_words = {
+    "how",
+    "to",
+    "a",
+    "an",
+    "the",
+    "in",
+    "of",
+    "for",
+    "on",
+    "with",
+    "is",
+    "at",
+    "by",
+    "from",
+    "and",
+    "or",
+    "what",
+    "which",
+    "best",
+    "top",
+    "small",
+    "business",
+    "ideas",
+    "kaise",
+    "kare",
+    "me",
+    "main",
+    "ko",
+    "se",
+    "ke",
+    "ki",
+    "near",
+    "near me",
 
-# --- PANDAS & WORD EXTRACTION LOGIC ---
-def extract_main_word(term):
-    """
-    Extracts the most relevant word from a search phrase.
-    Priority list check hoti hai, warna longest word return hota hai.
-    """
-    if not isinstance(term, str) or not term.strip():
+}
+
+
+def extract_one_word(phrase):
+    if not isinstance(phrase, str):
         return ""
-    
-    # Text cleaning: Lowercase aur basic cleaning
-    words = term.lower().split()
-    
-    # Priority Keywords Hierarchy
-    priority_words = [
-        "franchise", "business", "marketing", "preschool", 
-        "currency", "school", "company", "ideas", "cost"
-    ]
-    
-    # 1. First priority check
-    for p in priority_words:
-        if p in words:
-            return p
-            
-    # 2. Fallback: Filter short stop words and pick the longest relevant word
-    stop_words = {"the", "a", "an", "in", "of", "for", "and", "or", "to", "is", "best", "top", "near", "me"}
-    filtered_words = [w for w in words if w not in stop_words]
-    
-    if filtered_words:
-        filtered_words.sort(key=len, reverse=True)
-        return filtered_words[0]
+
+    words = phrase.lower().strip().split()
+
+    for word in words:
         
-    return words[0] if words else ""
+        clean_word = re.sub(r"[^\w]", "", word, flags=re.UNICODE)
 
-# --- MAIN EXECUTION PIPELINE ---
-def process_data():
-    print("Connecting to Google Sheet...")
+        if clean_word and clean_word not in stop_words:
+            return clean_word
+
+    return re.sub(r"[^\w]", "", words[0], flags=re.UNICODE) if words else ""
+
+
+def process_csv():
     try:
-        client = get_sheet_client()
-        sheet = client.open(SPREADSHEET_NAME).sheet1
+        #
+        df = pd.read_csv(input_csv_path)
+
+        first_column_name = df.columns[0]
+        df["Main Word"] = df[first_column_name].apply(extract_one_word)
+
+        selected_columns = [
+            "Main Word",
+            df.columns[5],  # Column F (Impr.)
+            df.columns[6],  # Column G (Clicks)
+            df.columns[8],  # Column I (Cost)
+            df.columns[11],  # Column L (Conv. rate)
+        ]
+
+        result_df = df[selected_columns]
+
+     
+        output_csv_path = "temp_one_word_analysis.csv"
+        result_df.to_csv(output_csv_path, index=False, encoding="utf-8-sig")
+
+        print(f" Success! Temporary CSV file generated")
+        print(f" Path: {output_csv_path}")
+
     except Exception as e:
-        print(f"\n[ERROR] Sheet Connection Failed: {e}")
-        print("Tip: Check karein ki SPREADSHEET_NAME exact match hai aur Google Sheet ko Service Account Email ke sath 'Editor' access diya hua hai.\n")
-        return
+        print(f" Error occurred: {e}")
 
-    # 1. Google Sheet se Data load karein
-    records = sheet.get_all_records()
-    if not records:
-        print("No data found in Google Sheet.")
-        return
-
-    df = pd.DataFrame(records)
-    print(f"Loaded {len(df)} rows from Google Sheet.")
-
-    # Validate column presence
-    if 'Search term' not in df.columns:
-        print("Error: 'Search term' column missing in Google Sheet.")
-        return
-
-    # 2. Extract Logic Apply karein
-    print("Processing logic via Pandas...")
-    df['One Word'] = df['Search term'].apply(extract_main_word)
-
-    # 3. Google Sheet Updates (Clear and write back)
-    print("Updating Google Sheet...")
-    updated_data = [df.columns.tolist()] + df.values.tolist()
-    sheet.clear()
-    sheet.update(range_name="A1", values=updated_data)
-
-    # 4. Local CSV Backup Save karein
-    output_dir = os.path.join(BASE_DIR, "..", "output")
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "processed_output.csv")
-    df.to_csv(output_path, index=False)
-    
-    print(f"\n[SUCCESS] Google Sheet updated successfully!")
-    print(f"Local backup file saved at: {os.path.abspath(output_path)}\n")
 
 if __name__ == "__main__":
-    process_data()
+    process_csv()
