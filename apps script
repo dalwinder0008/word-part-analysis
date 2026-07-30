@@ -1,35 +1,84 @@
-function doPost(e) {
+function processExcelFile() {
+  // 1. Apni Excel (.xlsx) File ki ID yahan daalein
+  var excelFileId = "YOUR_EXCEL_FILE_ID_HERE"; 
+  
+  // 2. Us Folder ki ID jahan nayi file save karni hai (Optional, nahi toh root Drive me save hogi)
+  var outputFolderId = "YOUR_FOLDER_ID_HERE"; 
+  
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    var data = JSON.parse(e.postData.contents);
-    var searchTerms = data.searchTerms;
-
-    // Sheet clear karke new headers set karein
-    sheet.clearContents();
-    sheet.appendRow(["Search term", "One Word"]);
-
-    // Raw terms insert karein
-    var rows = searchTerms.map(function(term) {
-      return [term, ""];
-    });
-
-    sheet.getRange(2, 1, rows.length, 2).setValues(rows);
-
-    return ContentService.createTextOutput(JSON.stringify({
-      status: "success",
-      message: "Data successfully synced to Google Sheet!"
-    })).setMimeType(ContentService.MimeType.JSON);
-
+    // --- STEP 1: Excel File ko Google Sheet me Convert / Load karna ---
+    var excelFile = DriveApp.getFileById(excelFileId);
+    var blob = excelFile.getBlob();
+    
+    // Drive API v2 ki madad se Excel file ko temporary Google Sheet me convert karte hain
+    var resource = {
+      title: excelFile.getName() + " [Converted]",
+      mimeType: MimeType.GOOGLE_SHEETS
+    };
+    
+    var tempSheetFile = Drive.Files.insert(resource, blob);
+    var tempSpreadsheet = SpreadsheetApp.openById(tempSheetFile.id);
+    var sourceSheet = tempSpreadsheet.getSheets()[0]; // Pehli sheet ka data lene ke liye
+    
+    // --- STEP 2: Data Read & Filter ("One Work" Operation) ---
+    var data = sourceSheet.getDataRange().getValues();
+    
+    if (data.length <= 1) {
+      Logger.log("Sheet khali hai ya sirf headers hain.");
+      // Temporary file delete karein
+      DriveApp.getFileById(tempSheetFile.id).setTrashed(true);
+      return;
+    }
+    
+    var headers = data[0]; // Pehli row Headers hoti hai
+    var filteredData = [headers]; // Headers ko output me include karein
+    
+    // Yahan Column Index set karein jisme "One Work" ya Work Operation likha hai
+    // Note: Column A = 0, Column B = 1, Column C = 2, Column D = 3 ...
+    var workColumnIndex = 1; // Apne Excel sheet ke hisab se ise change karein (e.g. Agar Column B hai toh 1)
+    
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var workType = String(row[workColumnIndex]).trim().toLowerCase();
+      
+      // "one work" filter condition
+      if (workType === "one work") {
+        filteredData.push(row);
+      }
+    }
+    
+    // --- STEP 3: Nayi Google Sheet Generate karna aur Filtered Data write karna ---
+    var newSheetName = "One_Work_Report_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd_HHmm");
+    var newSpreadsheet = SpreadsheetApp.create(newSheetName);
+    var targetSheet = newSpreadsheet.getActiveSheet();
+    
+    if (filteredData.length > 1) {
+      // Filtered data ko nayi sheet me write karna
+      targetSheet.getRange(1, 1, filteredData.length, headers.length).setValues(filteredData);
+      
+      // Header Formatting (Polished Look)
+      var headerRange = targetSheet.getRange(1, 1, 1, headers.length);
+      headerRange.setBackground("#1F4E78")
+                 .setFontColor("#FFFFFF")
+                 .setFontWeight("bold");
+      
+      targetSheet.autoResizeColumns(1, headers.length);
+      Logger.log("Nayi File successfully generate ho gayi! URL: " + newSpreadsheet.getUrl());
+    } else {
+      Logger.log("'One Work' ka koi data nahi mila.");
+    }
+    
+    // Optional: Nayi file ko specific Folder me move karna
+    if (outputFolderId && outputFolderId !== "YOUR_FOLDER_ID_HERE") {
+      var targetFile = DriveApp.getFileById(newSpreadsheet.getId());
+      var folder = DriveApp.getFolderById(outputFolderId);
+      targetFile.moveTo(folder);
+    }
+    
+    // Cleanup: Temporary converted file ko trash me daal dena
+    DriveApp.getFileById(tempSheetFile.id).setTrashed(true);
+    
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
-      status: "error",
-      message: error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    Logger.log("Error: " + error.toString());
   }
-}
-
-// CORS issues avoid karne ke liye Web App preflight handling
-function doOptions(e) {
-  return ContentService.createTextOutput("")
-    .setMimeType(ContentService.MimeType.TEXT);
 }
