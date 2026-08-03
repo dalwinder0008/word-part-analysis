@@ -1,60 +1,66 @@
 async function uploadAndAnalyze() {
   const fileInput = document.getElementById('csvFileInput');
-  const file = fileInput.files[0];
-
-  if (!file) {
-    alert("Kripya pehle ek CSV file select karein!");
-    return;
-  }
+  if (!fileInput.files[0]) return alert("Select CSV file!");
 
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', fileInput.files[0]);
 
   try {
-    // 💡 LIVE SERVER SE FLASK PAR BHEJNE KE LIYE POORA ADDRESS LAGAYEIN
-    const response = await fetch('http://127.0.0.1:5000/analyze', {
-      method: 'POST',
-      body: formData
+    const res = await fetch('http://127.0.0.1:5000/analyze', { 
+      method: 'POST', 
+      body: formData 
     });
+    
+    const result = await res.json();
 
-    const data = await response.json();
-
-    if (data.success) {
-      openNewPage(data.words);
+    if (result.success) {
+      openReportWindow(result.data);
     } else {
-      alert("Error: " + data.error);
+      alert("Error: " + result.error);
     }
-  } catch (error) {
-    alert("Server Response Error! Make sure Flask server is running on port 5000.");
+  } catch (err) {
+    alert("Server Error! Make sure Python Flask server is running on port 5000.");
   }
 }
 
-function openNewPage(words) {
-  const newWin = window.open("", "_blank");
-  
-  const tableRows = words.map(w => `<tr><td>${w}</td></tr>`).join('');
+function openReportWindow(data) {
+  const win = window.open("", "_blank");
 
-  newWin.document.write(`
+  // Dynamically Generate Table Rows
+  const tableRows = data.map(item => `
+    <tr>
+      <td><b>${item["Main Word"] || "-"}</b></td>
+      <td>${item["Clicks"] !== undefined ? item["Clicks"] : "-"}</td>
+      <td>${item["Impressions"] !== undefined ? item["Impressions"] : "-"}</td>
+      <td>${item["Cost"] !== undefined ? Number(item["Cost"]).toFixed(2) : "-"}</td>
+    </tr>
+  `).join('');
+
+  win.document.write(`
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>Extracted One Word Data</title>
+      <title>One Word Metrics Report</title>
       <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        h3 { color: #333; }
-        p { color: #666; font-size: 13px; }
-        table { border-collapse: collapse; width: 250px; margin-top: 15px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-        th { background-color: #eeeeee; }
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+        h2 { color: #2c3e50; }
+        table { border-collapse: collapse; width: 100%; max-width: 700px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { border: 1px solid #dddddd; padding: 10px 14px; text-align: left; }
+        th { background-color: #3498db; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
       </style>
     </head>
     <body>
-      <h3>Extracted One Word Analysis</h3>
-      <p><i>Temporary file saved on local server: <b>temp_one_word_analysis.csv</b></i></p>
+      <h2>One Word Performance Analysis</h2>
       <table>
         <thead>
-          <tr><th>Main Word</th></tr>
+          <tr>
+            <th>Main Word</th>
+            <th>Clicks</th>
+            <th>Impressions</th>
+            <th>Cost</th>
+          </tr>
         </thead>
         <tbody>
           ${tableRows}
@@ -63,5 +69,6 @@ function openNewPage(words) {
     </body>
     </html>
   `);
-  newWin.document.close();
+
+  win.document.close();
 }
