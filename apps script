@@ -3,28 +3,28 @@ function processSearchTerms() {
   const sheet = ss.getActiveSheet();
   const data = sheet.getDataRange().getValues();
 
+  // Stop Words Set
   const stopWords = new Set([
-    "how", "to", "a", "an", "the", "in", "of", "for", "on", "kaise", "kare", "me", "ke", "ki", "near",
+    "how", "to", "a", "an", "the", "in", "of", "for", "on", "kaise", "kare", "me", "ke", "ki", "near"
   ]);
 
-
+  // Header Row
   const output = [["Main Word", "Impr.", "Clicks", "Cost", "Conversions"]];
 
- 
+  // MAIN LOOP
   for (let r = 1; r < data.length; r++) {
     const row = data[r];
     const searchTerm = String(row[0] || "").toLowerCase().trim();
 
     if (!searchTerm) continue;
 
+    // 1. Keyword Extraction
     let mainWord = "";
     const words = searchTerm.split(/\s+/);
     
     for (let w = 0; w < words.length; w++) {
-      // \u0900-\u097F Hindi (Devanagari) characters ko preserve karta hai
-      const cleanWord = words[w].replace(/[^\w\u0900-\u097F]/g, "");
+      const cleanWord = words[w].replace(/[^\w]/g, "");
       
-      // Stop word aur pure numbers ko skip karke pehla valid word nikalna
       if (cleanWord && !stopWords.has(cleanWord) && isNaN(cleanWord)) {
         mainWord = cleanWord;
         break;
@@ -35,15 +35,16 @@ function processSearchTerms() {
       mainWord = words[0].replace(/[^\w\u0900-\u097F]/g, "");
     }
 
-    const impr = Number(String(row[5] || 0).replace(/[^\d.]/g, "")) || 0;
-    const clicks = Number(String(row[6] || 0).replace(/[^\d.]/g, "")) || 0;
-    const cost = Number(String(row[8] || 0).replace(/[^\d.]/g, "")) || 0;
-    const conv = Number(String(row[9] || 0).replace(/[^\d.]/g, "")) || 0;
+    // 2. Direct Metrics
+    const impr = Number(row[5]) || 0;
+    const clicks = Number(row[6]) || 0;
+    const cost = Number(row[8]) || 0;
+    const conv = Number(row[9]) || 0;
 
     output.push([mainWord, impr, clicks, cost, conv]);
   }
 
-
+  // 3. Output Sheet Handling
   let outputSheet = ss.getSheetByName("One Word Analysis");
   if (!outputSheet) {
     outputSheet = ss.insertSheet("One Word Analysis");
@@ -51,10 +52,9 @@ function processSearchTerms() {
     outputSheet.clear();
   }
 
-  
+  // Pure Simple Data Paste + Frozen Row (Bina Colour aur Bina Bold ke)
   outputSheet.getRange(1, 1, output.length, output[0].length).setValues(output);
-  outputSheet.getRange(1, 1, 1, output[0].length).setFontWeight("bold").setBackground("#e8e8e8");
   outputSheet.setFrozenRows(1);
 
-  SpreadsheetApp.getUi().alert("Done! One Word Analysis");
+  SpreadsheetApp.getUi().alert("Done! 'One Word Analysis' sheet me output dekhein.");
 }
