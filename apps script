@@ -1,60 +1,66 @@
-function processSearchTerms() {
+function extractAndCreateNewFile() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getActiveSheet();
   const data = sheet.getDataRange().getValues();
 
-  // Stop Words Set
+  if (data.length <= 1) {
+    SpreadsheetApp.getUi().alert("no sheet data!");
+    return;
+  }
+
   const stopWords = new Set([
-    "how", "to", "a", "an", "the", "in", "of", "for", "on", "kaise", "kare", "me", "ke", "ki", "near"
+    "how", "to", "a", "an", "the", "in", "of", "for", "on", "with", "is", "at", "by", "from", 
+    "and", "or", "what", "which", "best", "top", "small", "business", "ideas", "kaise", "kare", 
+    "me", "main", "ko", "se", "ke", "ki", "near"
   ]);
 
-  // Header Row
-  const output = [["Main Word", "Impr.", "Clicks", "Cost", "Conversions"]];
+  const outputData = [["Main Word", "Impr.", "Clicks", "Cost", "Conv. rate"]];
 
-  // MAIN LOOP
+ 
   for (let r = 1; r < data.length; r++) {
     const row = data[r];
     const searchTerm = String(row[0] || "").toLowerCase().trim();
 
     if (!searchTerm) continue;
 
-    // 1. Keyword Extraction
+
     let mainWord = "";
     const words = searchTerm.split(/\s+/);
-    
+
     for (let w = 0; w < words.length; w++) {
-      const cleanWord = words[w].replace(/[^\w]/g, "");
-      
+      const cleanWord = words[w].replace(/[^\w\u0900-\u097F]/g, "");
+
       if (cleanWord && !stopWords.has(cleanWord) && isNaN(cleanWord)) {
         mainWord = cleanWord;
         break;
       }
     }
-    
+
     if (!mainWord && words[0]) {
       mainWord = words[0].replace(/[^\w\u0900-\u097F]/g, "");
     }
 
-    // 2. Direct Metrics
+    
     const impr = Number(row[5]) || 0;
     const clicks = Number(row[6]) || 0;
     const cost = Number(row[8]) || 0;
-    const conv = Number(row[9]) || 0;
+    const convRate = Number(row[11]) || 0;
 
-    output.push([mainWord, impr, clicks, cost, conv]);
+    outputData.push([mainWord, impr, clicks, cost, convRate]);
   }
+  const newSpreadsheet = SpreadsheetApp.create("OneWord_Report_" + new Date().toLocaleDateString());
+  const newSheet = newSpreadsheet.getActiveSheet();
 
-  // 3. Output Sheet Handling
-  let outputSheet = ss.getSheetByName("One Word Analysis");
-  if (!outputSheet) {
-    outputSheet = ss.insertSheet("One Word Analysis");
-  } else {
-    outputSheet.clear();
-  }
+  newSheet.getRange(1, 1, 1, 5).setValues([["Main Word", "Impr.", "Clicks", "Cost", "Conv. rate"]]);
+  newSheet.getRange(2, 1, outputData.length, 5).setValues(outputData);
 
-  // Pure Simple Data Paste + Frozen Row (Bina Colour aur Bina Bold ke)
-  outputSheet.getRange(1, 1, output.length, output[0].length).setValues(output);
-  outputSheet.setFrozenRows(1);
 
-  SpreadsheetApp.getUi().alert("Done! One Word Analysis.");
+ 
+const fileUrl = newSpreadsheet.getUrl();
+const html = `<p><a href="${fileUrl}" target="_blank">Click Here to Open New File</a></p>`;
+
+SpreadsheetApp.getUi().showModalDialog(
+  HtmlService.createHtmlOutput(html).setWidth(300).setHeight(80), 
+  "New File Link"
+);
 }
