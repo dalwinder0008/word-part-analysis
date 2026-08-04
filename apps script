@@ -1,43 +1,60 @@
-function extractAndCreateNewFile() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return;
-
-  const data = sheet.getRange(2, 1, lastRow - 1, 12).getValues();
+function processSearchTerms() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getActiveSheet();
+  const data = sheet.getDataRange().getValues();
 
   const stopWords = new Set([
-    "how", "to", "a", "an", "the", "in", "of", "for", "on", "with", "is", "at", "by", "from", 
-    "and", "or", "what", "which", "best", "top", "small", "business", "ideas", "kaise", "kare", 
-    "me", "main", "ko", "se", "ke", "ki"
+    "how", "to", "a", "an", "the", "in", "of", "for", "on", "kaise", "kare", "me", "ke", "ki", "near",
   ]);
 
 
-  const outputData = data.map(row => {
-    const phrase = row[0].toString().toLowerCase().trim();
-    const words = phrase.split(/\s+/);
+  const output = [["Main Word", "Impr.", "Clicks", "Cost", "Conversions"]];
+
+ 
+  for (let r = 1; r < data.length; r++) {
+    const row = data[r];
+    const searchTerm = String(row[0] || "").toLowerCase().trim();
+
+    if (!searchTerm) continue;
+
+    let mainWord = "";
+    const words = searchTerm.split(/\s+/);
     
-    let mainWord = words.find(w => {
-      const clean = w.replace(/[^\p{L}\p{N}]/gu, "");
-      return clean && !stopWords.has(clean);
-    }) || words[0] || "";
+    for (let w = 0; w < words.length; w++) {
+      // \u0900-\u097F Hindi (Devanagari) characters ko preserve karta hai
+      const cleanWord = words[w].replace(/[^\w\u0900-\u097F]/g, "");
+      
+      // Stop word aur pure numbers ko skip karke pehla valid word nikalna
+      if (cleanWord && !stopWords.has(cleanWord) && isNaN(cleanWord)) {
+        mainWord = cleanWord;
+        break;
+      }
+    }
+    
+    if (!mainWord && words[0]) {
+      mainWord = words[0].replace(/[^\w\u0900-\u097F]/g, "");
+    }
 
-    mainWord = mainWord.replace(/[^\p{L}\p{N}]/gu, "");
+    const impr = Number(String(row[5] || 0).replace(/[^\d.]/g, "")) || 0;
+    const clicks = Number(String(row[6] || 0).replace(/[^\d.]/g, "")) || 0;
+    const cost = Number(String(row[8] || 0).replace(/[^\d.]/g, "")) || 0;
+    const conv = Number(String(row[9] || 0).replace(/[^\d.]/g, "")) || 0;
 
-    return [mainWord, row[5], row[6], row[8], row[11]];
-  });
-
-  const newSpreadsheet = SpreadsheetApp.create("OneWord_Report_" + new Date().toLocaleDateString());
-  const newSheet = newSpreadsheet.getActiveSheet();
-
-  newSheet.getRange(1, 1, 1, 5).setValues([["Main Word", "Impr.", "Clicks", "Cost", "Conv. rate"]]);
-  newSheet.getRange(2, 1, outputData.length, 5).setValues(outputData);
+    output.push([mainWord, impr, clicks, cost, conv]);
+  }
 
 
-const fileUrl = newSpreadsheet.getUrl();
-const html = `<p><a href="${fileUrl}" target="_blank">Click Here to Open New File</a></p>`;
+  let outputSheet = ss.getSheetByName("One Word Analysis");
+  if (!outputSheet) {
+    outputSheet = ss.insertSheet("One Word Analysis");
+  } else {
+    outputSheet.clear();
+  }
 
-SpreadsheetApp.getUi().showModalDialog(
-  HtmlService.createHtmlOutput(html).setWidth(300).setHeight(80), 
-  "New File Link"
-);
+  
+  outputSheet.getRange(1, 1, output.length, output[0].length).setValues(output);
+  outputSheet.getRange(1, 1, 1, output[0].length).setFontWeight("bold").setBackground("#e8e8e8");
+  outputSheet.setFrozenRows(1);
+
+  SpreadsheetApp.getUi().alert("Done! One Word Analysis");
 }
