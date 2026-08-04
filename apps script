@@ -56,5 +56,5 @@ function processSearchTerms() {
   outputSheet.getRange(1, 1, output.length, output[0].length).setValues(output);
   outputSheet.setFrozenRows(1);
 
-  SpreadsheetApp.getUi().alert("Done! 'One Word Analysis' sheet me output dekhein.");
+  SpreadsheetApp.getUi().alert("Done! One Word Analysis.");
 }
