@@ -31,7 +31,11 @@ def analyze_csv():
     file = request.files["file"]
 
     try:
-        df = pd.read_csv(file)
+        try:
+            df = pd.read_csv(file)
+        except pd.errors.EmptyDataError:
+            return jsonify({"error": "CSV File is empty"}), 400
+
         if df.empty:
             return jsonify({"error": "CSV File is empty"}), 400
 
@@ -45,13 +49,15 @@ def analyze_csv():
             for col in df.columns:
                 col_lower = col.strip().lower()
                 if any(kw in col_lower for kw in keywords):
-                 
-                    return pd.to_numeric(df[col], errors='coerce').fillna(default_val)
+                    # Clean numeric strings (remove commas, quotes, currency symbols, %, etc.)
+                    clean_series = df[col].astype(str).str.replace(r"[^\d.-]", "", regex=True)
+                    return pd.to_numeric(clean_series, errors='coerce').fillna(default_val)
+            return pd.Series([default_val] * len(df))
 
         result_df["Impr."] = get_col_data(["impr", "impression"])
         result_df["Clicks"] = get_col_data(["click"])
         result_df["Cost"] = get_col_data(["cost", "spend"])
-        result_df["Conv. rate"] = get_col_data(["conv. rate", "conversion rate", "conv rate"])
+        result_df["Conv. rate"] = get_col_data(["conv. rate", "conversion rate", "conv rate", "conv"])
 
 
         return jsonify({"success": True, "data": result_df.to_dict(orient="records")})

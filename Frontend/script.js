@@ -35,7 +35,7 @@ function openNewPage(data) {
       <td>${item["Impr."] !== undefined ? item["Impr."] : 0}</td>
       <td>${item["Clicks"] !== undefined ? item["Clicks"] : 0}</td>
       <td>${item["Cost"] !== undefined ? item["Cost"] : 0}</td>
-      <td>${item["Conversions"] !== undefined ? item["Conversions"] : (item["Conv. rate"] || 0)}</td>
+      <td>${item["Conv. rate"] !== undefined ? item["Conv. rate"] : (item["Conversions"] || 0)}</td>
     </tr>
   `).join('');
   newWin.document.write(`
@@ -54,7 +54,7 @@ function openNewPage(data) {
             <th>Impr.</th>
             <th>Clicks</th>
             <th>Cost</th>
-            <th>Conversions</th>
+            <th>Conv. rate</th>
           </tr>
         </thead>
         <tbody>
