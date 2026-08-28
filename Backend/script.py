@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # ==============================================================================
-input_csv_path = r"D:/dowloads/EDify - kids -- STR -- last 30 days -- Dalwinder  - Search terms report.csv"
+input_csv_path = r"input_search_terms.csv"
 
 stop_words = {
     "how",

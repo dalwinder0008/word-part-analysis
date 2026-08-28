@@ -1,2 +1,4 @@
 Backend/credentials.json
 *.xlsx
+__pycache__/
+*.pyc
